@@ -744,17 +744,36 @@
         // Generate shareable URL (only include non-default categories)
         function generateShareURL() {
             const parts = [];
+            
+            // Include current parties that differ from default
             for (const name in parties) {
                 const cat = getCategoryForParty(name);
-                const defaultCat = getDefaultCategory(parties[name]);
-                
-                // Skip if party is in its default category
-                if (cat === defaultCat) continue;
-                
                 const code = partyToCode[name] || name;  // Use full name if no code
                 const catCode = categoryToCode[cat];
-                parts.push(`${code}=${parties[name]}${catCode}`);
+                
+                // Check if this is a new party (not in initialParties)
+                const isNewParty = !(name in initialParties);
+                
+                if (isNewParty) {
+                    // New parties always need to be included
+                    parts.push(`${code}=${parties[name]}${catCode}`);
+                } else {
+                    // Original party - only include if not in default category
+                    const defaultCat = getDefaultCategory(initialParties[name]);
+                    if (cat !== defaultCat) {
+                        parts.push(`${code}=${parties[name]}${catCode}`);
+                    }
+                }
             }
+            
+            // Include deleted original parties as =0
+            for (const name in initialParties) {
+                if (!(name in parties)) {
+                    const code = partyToCode[name] || name;
+                    parts.push(`${code}=0M`);
+                }
+            }
+            
             const base = window.location.origin + window.location.pathname;
             return parts.length > 0 ? base + '?' + parts.join(',') : base;
         }
@@ -788,18 +807,23 @@
                 const seats = parseInt(seatsStr);
                 const cat = codeToCategory[catCode];
                 
-                if (name && seats > 0 && cat) {
+                if (!name || !cat) continue;
+                
+                // Remove from old category first
+                for (const c in newCategories) {
+                    const idx = newCategories[c].indexOf(name);
+                    if (idx !== -1) {
+                        newCategories[c].splice(idx, 1);
+                        break;
+                    }
+                }
+                
+                if (seats === 0) {
+                    // Deletion - remove party entirely
+                    delete newParties[name];
+                } else {
                     // Update or add party
                     newParties[name] = seats;
-                    
-                    // Remove from old category
-                    for (const c in newCategories) {
-                        const idx = newCategories[c].indexOf(name);
-                        if (idx !== -1) {
-                            newCategories[c].splice(idx, 1);
-                            break;
-                        }
-                    }
                     
                     // Add to new category
                     newCategories[cat].push(name);
