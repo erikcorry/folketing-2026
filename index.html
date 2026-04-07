@@ -449,12 +449,12 @@
             "Jacob Harris": "JH",
             "Liberal Alliance": "I",
             "Cecilie Liv Hansen": "CLH",
-            "Moderaterne": "MM",
+            "Moderaterne": "M",
             "Dansk Folkeparti": "O",
             "Venstre": "V",
-            "Dan. Demokraterne": "Æ",
-            "Enhedslisten": "Ø",
-            "Alternativet": "Å",
+            "Dan. Demokraterne": "AE",
+            "Enhedslisten": "OE",
+            "Alternativet": "AA",
             "Inuit Ataqatigiit": "IA",
             "Naleraq": "N",
             "Sambandsflokk.": "SP",
@@ -477,16 +477,16 @@
         // Detect mobile browser
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-        // Initialize (called on reload)
+        // Initialize (called on reset)
         function init() {
             parties = { ...initialParties };
             // Single-mandate "parties" start in "ingen stemme", others in "unknown"
             const ingen = Object.keys(parties).filter(p => parties[p] === 1);
             const unknown = Object.keys(parties).filter(p => parties[p] > 1);
             categories = { ja: [], nej: [], ingen, unknown };
-            // Clear URL when reloading
-            history.replaceState(null, '', window.location.pathname);
             render();
+            // Clear URL and push to history
+            history.pushState({ parties: {...parties}, categories: {...categories} }, '', window.location.pathname);
         }
 
         // Render all parties
@@ -621,7 +621,28 @@
             // Add to new category
             categories[newCategory].push(name);
             render();
+            pushURL();
         }
+        
+        // Update URL bar and push to history
+        function pushURL() {
+            const url = generateShareURL();
+            const path = url.split(window.location.origin)[1] || url;
+            history.pushState({ parties: {...parties}, categories: {...categories} }, '', path);
+        }
+        
+        // Handle back/forward navigation
+        window.addEventListener('popstate', (e) => {
+            if (e.state) {
+                parties = e.state.parties;
+                categories = e.state.categories;
+                render();
+            } else {
+                // No state - go back to initial
+                parseURL() || init();
+                render();
+            }
+        });
 
         // Delete party
         function deleteParty(name) {
@@ -635,6 +656,7 @@
                     }
                 }
                 render();
+                pushURL();
             }
         }
 
@@ -654,6 +676,7 @@
                 document.getElementById('party-name').value = '';
                 document.getElementById('party-seats').value = '';
                 render();
+                pushURL();
             }
         });
 
@@ -755,13 +778,18 @@
                 const isNewParty = !(name in initialParties);
                 
                 if (isNewParty) {
-                    // New parties always need to be included
-                    parts.push(`${code}=${parties[name]}${catCode}`);
+                    // New parties always need to be included (with seat count)
+                    parts.push(`${encodeURIComponent(code)}=${parties[name]}${catCode}`);
                 } else {
                     // Original party - only include if not in default category
                     const defaultCat = getDefaultCategory(initialParties[name]);
                     if (cat !== defaultCat) {
-                        parts.push(`${code}=${parties[name]}${catCode}`);
+                        // Omit seat count if unchanged from default
+                        if (parties[name] === initialParties[name]) {
+                            parts.push(`${encodeURIComponent(code)}=${catCode}`);
+                        } else {
+                            parts.push(`${encodeURIComponent(code)}=${parties[name]}${catCode}`);
+                        }
                     }
                 }
             }
@@ -770,7 +798,7 @@
             for (const name in initialParties) {
                 if (!(name in parties)) {
                     const code = partyToCode[name] || name;
-                    parts.push(`${code}=0M`);
+                    parts.push(`${encodeURIComponent(code)}=0`);
                 }
             }
             
@@ -799,15 +827,26 @@
             
             // Apply overrides from URL
             for (const part of parts) {
-                const match = part.match(/^(.+)=(\d+)([JNIM])$/);
+                // Match with optional seat count: "A=J" or "A=38J" or "A=0"
+                const match = part.match(/^(.+)=(\d*)([JNIM]?)$/);
                 if (!match) continue;
                 
                 const [, code, seatsStr, catCode] = match;
                 const name = codeToParty[code] || code;  // Use code as name if unknown
-                const seats = parseInt(seatsStr);
-                const cat = codeToCategory[catCode];
                 
-                if (!name || !cat) continue;
+                // Get seats: from URL, or default if omitted
+                let seats;
+                if (seatsStr === '' || seatsStr === undefined) {
+                    // No seat count - use default
+                    seats = initialParties[name] || 0;
+                } else {
+                    seats = parseInt(seatsStr);
+                }
+                
+                // Get category: from URL, or default if omitted (for deletions like "A=0")
+                const cat = catCode ? codeToCategory[catCode] : 'unknown';
+                
+                if (!name) continue;
                 
                 // Remove from old category first
                 for (const c in newCategories) {
@@ -865,6 +904,9 @@
         if (!isMobile) {
             setupDragAndDrop();
         }
+        
+        // Set initial history state
+        history.replaceState({ parties: {...parties}, categories: {...categories} }, '', window.location.href);
     </script>
 </body>
 </html>
