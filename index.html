@@ -298,6 +298,33 @@
         body.is-mobile .instructions li:nth-child(2) {
             display: none;
         }
+        
+        .share-section {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        #share-btn {
+            padding: 10px 20px;
+            background: #673ab7;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        #share-btn:hover {
+            background: #512da8;
+        }
+        #share-feedback {
+            color: #4caf50;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -306,7 +333,7 @@
     <div class="instructions">
         <h3>Sådan bruger du siden</h3>
         <ul>
-            <li><a href="#" onclick="location.reload(); return false;">Reload</a> for at starte forfra</li>
+            <li><a href="#" onclick="init(); return false;">Nulstil</a> for at starte forfra</li>
             <li><strong>Træk partier</strong> mellem kategorierne for at se hvordan det påvirker mulighederne</li>
             <li><strong>Ja:</strong> Partiet stemmer for regeringen</li>
             <li><strong>Nej:</strong> Partiet stemmer imod regeringen</li>
@@ -381,6 +408,11 @@
             <button type="submit">Tilføj</button>
         </form>
     </div>
+    
+    <div class="share-section">
+        <button id="share-btn" onclick="shareState()">📋 Kopiér link</button>
+        <span id="share-feedback"></span>
+    </div>
 
     <script>
         // Initial party data
@@ -405,6 +437,33 @@
             "Sambandsflokk.": 1,
             "Javnaðarflokkurin": 1
         };
+        
+        // Party code mapping (Danish party letters + initials for løsgængere)
+        const partyToCode = {
+            "Soc.demokratiet": "A",
+            "Radikale Venstre": "B",
+            "Konservative": "C",
+            "Soc. Folkeparti": "F",
+            "Borgernes Parti": "H",
+            "Emilie Schytte": "ES",
+            "Jacob Harris": "JH",
+            "Liberal Alliance": "I",
+            "Cecilie Liv Hansen": "CLH",
+            "Moderaterne": "MM",
+            "Dansk Folkeparti": "O",
+            "Venstre": "V",
+            "Dan. Demokraterne": "Æ",
+            "Enhedslisten": "Ø",
+            "Alternativet": "Å",
+            "Inuit Ataqatigiit": "IA",
+            "Naleraq": "N",
+            "Sambandsflokk.": "SP",
+            "Javnaðarflokkurin": "JF"
+        };
+        const codeToParty = Object.fromEntries(Object.entries(partyToCode).map(([k, v]) => [v, k]));
+        
+        const categoryToCode = { ja: 'J', nej: 'N', ingen: 'I', unknown: 'M' };
+        const codeToCategory = { J: 'ja', N: 'nej', I: 'ingen', M: 'unknown' };
 
         // State
         let parties = {};
@@ -418,22 +477,16 @@
         // Detect mobile browser
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-        // Initialize
+        // Initialize (called on reload)
         function init() {
             parties = { ...initialParties };
             // Single-mandate "parties" start in "ingen stemme", others in "unknown"
             const ingen = Object.keys(parties).filter(p => parties[p] === 1);
             const unknown = Object.keys(parties).filter(p => parties[p] > 1);
             categories = { ja: [], nej: [], ingen, unknown };
-            
-            if (isMobile) {
-                document.body.classList.add('is-mobile');
-            }
-            
+            // Clear URL when reloading
+            history.replaceState(null, '', window.location.pathname);
             render();
-            if (!isMobile) {
-                setupDragAndDrop();
-            }
         }
 
         // Render all parties
@@ -625,7 +678,7 @@
                 statusEl.innerHTML = `
                     <strong>⚠️ Fejl: Forkert antal mandater</strong><br>
                     Der er ${totalSeats} mandater, men der skal være præcis 179.<br>
-                    <a href="#" onclick="location.reload(); return false;">Start forfra</a> eller tilføj et parti nederst.
+                    <a href="#" onclick="init(); return false;">Start forfra</a> eller tilføj et parti nederst.
                 `;
                 return;
             }
@@ -682,9 +735,112 @@
 
             return count;
         }
+        
+        // Get default category for a party (1-seat = ingen, else = unknown)
+        function getDefaultCategory(seats) {
+            return seats === 1 ? 'ingen' : 'unknown';
+        }
+        
+        // Generate shareable URL (only include non-default categories)
+        function generateShareURL() {
+            const parts = [];
+            for (const name in parties) {
+                const cat = getCategoryForParty(name);
+                const defaultCat = getDefaultCategory(parties[name]);
+                
+                // Skip if party is in its default category
+                if (cat === defaultCat) continue;
+                
+                const code = partyToCode[name] || name;  // Use full name if no code
+                const catCode = categoryToCode[cat];
+                parts.push(`${code}=${parties[name]}${catCode}`);
+            }
+            const base = window.location.origin + window.location.pathname;
+            return parts.length > 0 ? base + '?' + parts.join(',') : base;
+        }
+        
+        // Parse URL and restore state
+        function parseURL() {
+            const search = window.location.search;
+            if (!search || search.length < 2) return false;
+            
+            // Decode URL and remove '?'
+            const data = decodeURIComponent(search.substring(1));
+            const parts = data.split(',');
+            
+            // Start with initial parties in default categories
+            const newParties = { ...initialParties };
+            const newCategories = { ja: [], nej: [], ingen: [], unknown: [] };
+            
+            // Put initial parties in their default categories
+            for (const name in newParties) {
+                const defaultCat = getDefaultCategory(newParties[name]);
+                newCategories[defaultCat].push(name);
+            }
+            
+            // Apply overrides from URL
+            for (const part of parts) {
+                const match = part.match(/^(.+)=(\d+)([JNIM])$/);
+                if (!match) continue;
+                
+                const [, code, seatsStr, catCode] = match;
+                const name = codeToParty[code] || code;  // Use code as name if unknown
+                const seats = parseInt(seatsStr);
+                const cat = codeToCategory[catCode];
+                
+                if (name && seats > 0 && cat) {
+                    // Update or add party
+                    newParties[name] = seats;
+                    
+                    // Remove from old category
+                    for (const c in newCategories) {
+                        const idx = newCategories[c].indexOf(name);
+                        if (idx !== -1) {
+                            newCategories[c].splice(idx, 1);
+                            break;
+                        }
+                    }
+                    
+                    // Add to new category
+                    newCategories[cat].push(name);
+                }
+            }
+            
+            parties = newParties;
+            categories = newCategories;
+            return true;
+        }
+        
+        // Share button handler
+        function shareState() {
+            const url = generateShareURL();
+            navigator.clipboard.writeText(url).then(() => {
+                const feedback = document.getElementById('share-feedback');
+                feedback.textContent = '✓ Link kopieret!';
+                setTimeout(() => { feedback.textContent = ''; }, 2000);
+            }).catch(err => {
+                // Fallback for older browsers
+                prompt('Kopiér dette link:', url);
+            });
+        }
 
         // Start
-        init();
+        if (!parseURL()) {
+            // No URL state, use defaults
+            parties = { ...initialParties };
+            const ingen = Object.keys(parties).filter(p => parties[p] === 1);
+            const unknown = Object.keys(parties).filter(p => parties[p] > 1);
+            categories = { ja: [], nej: [], ingen, unknown };
+        }
+        
+        if (isMobile) {
+            document.body.classList.add('is-mobile');
+        }
+        
+        render();
+        if (!isMobile) {
+            setupDragAndDrop();
+        }
     </script>
 </body>
 </html>
