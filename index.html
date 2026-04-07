@@ -201,7 +201,7 @@
     <div class="instructions">
         <h3>Sådan bruger du siden</h3>
         <ul>
-            <li><strong>Reload </strong> for at starte forfra</li>
+            <li><a href="#" onclick="location.reload(); return false;">Reload</a> for at starte forfra</li>
             <li><strong>Træk partier</strong> mellem kategorierne for at se hvordan det påvirker mulighederne</li>
             <li><strong>Ja:</strong> Partiet stemmer for regeringen</li>
             <li><strong>Nej:</strong> Partiet stemmer imod regeringen</li>
@@ -443,8 +443,8 @@
                 statusEl.className = 'status red';
                 statusEl.innerHTML = `
                     <strong>⚠️ Fejl: Forkert antal mandater</strong><br>
-                    Der er ${totalSeats} mandater, men der skal være præcis 179.
-                    ${totalSeats < 179 ? `Mangler ${179 - totalSeats} mandater.` : `${totalSeats - 179} for mange mandater.`}
+                    Der er ${totalSeats} mandater, men der skal være præcis 179.<br>
+                    <a href="#" onclick="location.reload(); return false;">Start forfra</a>
                 `;
                 return;
             }
