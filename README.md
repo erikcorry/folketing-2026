@@ -1,2 +1,2 @@
 # folketing-2026
-Interaktiv regeringssammensætter
+Vibekodet interaktiv regeringssammensætter
