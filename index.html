@@ -448,10 +448,10 @@
             }
 
             // Calculate possible governments
-            // A government needs: jaSeats + subset of unknownSeats > threshold
-            // Threshold: more than half of voting members (excluding "ingen stemme")
+            // A government survives if: FOR >= AGAINST (tie = survives)
+            // Threshold: at least half of voting members (excluding "ingen stemme")
             const votingSeats = 179 - ingenSeats;
-            const threshold = Math.floor(votingSeats / 2) + 1;
+            const threshold = Math.ceil(votingSeats / 2);
 
             const unknownParties = categories.unknown.map(p => parties[p]);
             const numGovernments = countGovernments(jaSeats, unknownParties, threshold);
