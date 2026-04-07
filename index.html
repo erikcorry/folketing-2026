@@ -461,6 +461,11 @@
             "Javnaðarflokkurin": "JF"
         };
         const codeToParty = Object.fromEntries(Object.entries(partyToCode).map(([k, v]) => [v, k]));
+        // Backwards compatibility: also recognize old codes when decoding
+        codeToParty['Æ'] = "Dan. Demokraterne";
+        codeToParty['Ø'] = "Enhedslisten";
+        codeToParty['Å'] = "Alternativet";
+        codeToParty['MM'] = "Moderaterne";
         
         const categoryToCode = { ja: 'J', nej: 'N', ingen: 'I', unknown: 'M' };
         const codeToCategory = { J: 'ja', N: 'nej', I: 'ingen', M: 'unknown' };
