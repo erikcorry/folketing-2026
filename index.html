@@ -391,15 +391,17 @@
 
         // Delete party
         function deleteParty(name) {
-            delete parties[name];
-            for (const cat in categories) {
-                const idx = categories[cat].indexOf(name);
-                if (idx !== -1) {
-                    categories[cat].splice(idx, 1);
-                    break;
+            if (confirm('Er du sikker på du vil fjerne partiet helt?')) {
+                delete parties[name];
+                for (const cat in categories) {
+                    const idx = categories[cat].indexOf(name);
+                    if (idx !== -1) {
+                        categories[cat].splice(idx, 1);
+                        break;
+                    }
                 }
+                render();
             }
-            render();
         }
 
         // Add party form handler
