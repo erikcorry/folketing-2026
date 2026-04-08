@@ -429,7 +429,7 @@
             "Moderaterne": 14,
             "Dansk Folkeparti": 16,
             "Venstre": 18,
-            "Dan. Demokraterne": 10,
+            "Dan.demokraterne": 10,
             "Enhedslisten": 11,
             "Alternativet": 5,
             "Inuit Ataqatigiit": 1,
@@ -452,7 +452,7 @@
             "Moderaterne": "M",
             "Dansk Folkeparti": "O",
             "Venstre": "V",
-            "Dan. Demokraterne": "AE",
+            "Dan.demokraterne": "AE",
             "Enhedslisten": "OE",
             "Alternativet": "AA",
             "Inuit Ataqatigiit": "IA",
@@ -462,7 +462,7 @@
         };
         const codeToParty = Object.fromEntries(Object.entries(partyToCode).map(([k, v]) => [v, k]));
         // Backwards compatibility: also recognize old codes when decoding
-        codeToParty['Æ'] = "Dan. Demokraterne";
+        codeToParty['Æ'] = "Dan.demokraterne";
         codeToParty['Ø'] = "Enhedslisten";
         codeToParty['Å'] = "Alternativet";
         codeToParty['MM'] = "Moderaterne";
